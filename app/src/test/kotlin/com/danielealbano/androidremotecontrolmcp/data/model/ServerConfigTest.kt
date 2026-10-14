@@ -199,6 +199,31 @@ class ServerConfigTest {
         fun `fromAddress returns LOCALHOST for unknown address`() {
             assertEquals(BindingAddress.LOCALHOST, BindingAddress.fromAddress("192.168.1.1"))
         }
+
+        @Test
+        fun `fromAddress never returns SPECIFIC`() {
+            assertEquals(BindingAddress.LOCALHOST, BindingAddress.fromAddress(""))
+        }
+
+        @Test
+        fun `bindHost uses the fixed address for LOCALHOST and NETWORK`() {
+            assertEquals("127.0.0.1", ServerConfig(customBindingAddress = "100.64.0.5").bindHost)
+            assertEquals(
+                "0.0.0.0",
+                ServerConfig(bindingAddress = BindingAddress.NETWORK, customBindingAddress = "100.64.0.5").bindHost,
+            )
+        }
+
+        @Test
+        fun `bindHost uses customBindingAddress for SPECIFIC`() {
+            val config = ServerConfig(bindingAddress = BindingAddress.SPECIFIC, customBindingAddress = "100.64.0.5")
+            assertEquals("100.64.0.5", config.bindHost)
+        }
+
+        @Test
+        fun `default customBindingAddress is empty`() {
+            assertEquals("", ServerConfig().customBindingAddress)
+        }
     }
 
     @Nested

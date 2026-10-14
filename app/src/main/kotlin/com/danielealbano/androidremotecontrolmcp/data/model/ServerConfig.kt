@@ -9,6 +9,8 @@ package com.danielealbano.androidremotecontrolmcp.data.model
  *
  * @property port The server port (1-65535).
  * @property bindingAddress The network binding address.
+ * @property customBindingAddress The IP literal to bind to when [bindingAddress] is
+ *   [BindingAddress.SPECIFIC] (validated by [BindAddressValidator]); ignored otherwise.
  * @property bearerToken The bearer token for MCP request authentication.
  * @property autoStartOnBoot Whether to start the MCP server on device boot.
  * @property toolCallIndicatorEnabled Whether to show an on-device overlay during MCP tool calls.
@@ -39,6 +41,7 @@ package com.danielealbano.androidremotecontrolmcp.data.model
 data class ServerConfig(
     val port: Int = DEFAULT_PORT,
     val bindingAddress: BindingAddress = BindingAddress.LOCALHOST,
+    val customBindingAddress: String = "",
     val bearerToken: String = "",
     val autoStartOnBoot: Boolean = false,
     val toolCallIndicatorEnabled: Boolean = true,
@@ -64,6 +67,13 @@ data class ServerConfig(
     val privacyModeConfig: PrivacyModeConfig = PrivacyModeConfig(),
     val hideFromRecents: Boolean = false,
 ) {
+    /**
+     * The address the server actually binds to: [customBindingAddress] for
+     * [BindingAddress.SPECIFIC], otherwise the fixed address of [bindingAddress].
+     */
+    val bindHost: String
+        get() = if (bindingAddress == BindingAddress.SPECIFIC) customBindingAddress else bindingAddress.address
+
     companion object {
         /** Default server port. */
         const val DEFAULT_PORT = 8080

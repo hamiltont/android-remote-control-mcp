@@ -40,6 +40,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.danielealbano.androidremotecontrolmcp.R
+import com.danielealbano.androidremotecontrolmcp.data.model.BindAddressValidator
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
@@ -128,6 +129,7 @@ fun ConnectionInfoCard(
     serverStatus: ServerStatus = ServerStatus.Stopped,
     tunnelStatus: TunnelStatus = TunnelStatus.Disconnected,
     onShare: (String) -> Unit = {},
+    customBindingAddress: String = "",
     modifier: Modifier = Modifier,
 ) {
     var showToken by remember { mutableStateOf(false) }
@@ -136,6 +138,7 @@ fun ConnectionInfoCard(
         when (bindingAddress) {
             BindingAddress.LOCALHOST -> "127.0.0.1"
             BindingAddress.NETWORK -> ipAddress
+            BindingAddress.SPECIFIC -> BindAddressValidator.toUrlHost(customBindingAddress)
         }
     val scheme = if (httpsEnabled) "https" else "http"
     val serverUrl = "$scheme://$displayAddress:$port/mcp"

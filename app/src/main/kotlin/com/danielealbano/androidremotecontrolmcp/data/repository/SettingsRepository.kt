@@ -1,6 +1,7 @@
 package com.danielealbano.androidremotecontrolmcp.data.repository
 
 import com.danielealbano.androidremotecontrolmcp.data.model.AvailableUpdate
+import com.danielealbano.androidremotecontrolmcp.data.model.BindAddressValidator
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.BuiltinPermissions
 import com.danielealbano.androidremotecontrolmcp.data.model.CertificateSource
@@ -46,6 +47,23 @@ interface SettingsRepository : EventChannelSettings {
 
     /** Updates the network binding address. */
     suspend fun updateBindingAddress(bindingAddress: BindingAddress)
+
+    /**
+     * Updates the IP address used when the binding address is [BindingAddress.SPECIFIC].
+     *
+     * @param address The IP literal to bind to. Must pass [validateCustomBindingAddress] first.
+     */
+    suspend fun updateCustomBindingAddress(address: String)
+
+    /**
+     * Validates an address for [BindingAddress.SPECIFIC]: a numeric, non-wildcard IPv4 or IPv6 literal.
+     *
+     * This is a pure validation function with no I/O (it never performs DNS resolution); it is
+     * intentionally non-suspending so callers are not forced into a coroutine context.
+     *
+     * @return [Result.success] with the trimmed address, or [Result.failure] with an [IllegalArgumentException].
+     */
+    fun validateCustomBindingAddress(address: String): Result<String> = BindAddressValidator.validate(address)
 
     /**
      * Updates the bearer token used for MCP request authentication.

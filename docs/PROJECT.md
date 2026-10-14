@@ -50,7 +50,7 @@ The application is a **service-based Android app** that exposes an MCP server ov
 - **Type**: Android Foreground Service
 - **Purpose**: Run HTTP server implementing MCP protocol
 - **Lifecycle**: User-controlled via MainActivity (start/stop)
-- **Capabilities**: HTTP/HTTPS server using Ktor, MCP JSON-RPC 2.0 protocol, bearer token authentication, configurable binding address (127.0.0.1 or 0.0.0.0), orchestrates calls to AccessibilityService
+- **Capabilities**: HTTP/HTTPS server using Ktor, MCP JSON-RPC 2.0 protocol, bearer token authentication, configurable binding address (127.0.0.1, 0.0.0.0, or one specific IP), orchestrates calls to AccessibilityService
 - **Implementation**: Foreground service with persistent notification, Kotlin coroutines for async request handling, reads configuration from DataStore, exposes Streamable HTTP endpoint at `/mcp` via MCP Kotlin SDK, graceful shutdown on service stop
 
 #### 3. MainActivity
@@ -653,15 +653,17 @@ Tunnel architecture:
 
 - **Default binding**: `127.0.0.1` (localhost only, requires `adb forward tcp:8080 tcp:8080`)
 - **Network mode**: `0.0.0.0` (all interfaces) — display security warning dialog when selected
+- **Specific mode**: one user-entered, non-wildcard IP literal (e.g. a Tailscale/VPN address) — listens only on the interface owning it; validated by `BindAddressValidator` (no hostnames/DNS, no wildcards, no IPv6 link-local); startup fails with an actionable error if the address is not assigned; tunnels are not started (they forward to localhost)
 
-| Connection Type | Binding: 127.0.0.1 | Binding: 0.0.0.0 |
-|-----------------|-------------------|------------------|
-| Mobile Data (4G/5G) | Not accessible | Not accessible from internet (CGNAT) |
-| WiFi (Private) | Not accessible | Accessible to same-network devices |
-| WiFi (Public) | Not accessible | **DANGER**: Accessible to anyone on public WiFi |
-| USB Tethered | Not accessible | Accessible to tethered device |
-| Device as Hotspot | Not accessible | Accessible to hotspot clients |
-| ADB Port Forward | Accessible via host | Accessible via host |
+| Connection Type | Binding: 127.0.0.1 | Binding: 0.0.0.0 | Binding: specific VPN IP |
+|-----------------|-------------------|------------------|--------------------------|
+| Mobile Data (4G/5G) | Not accessible | Not accessible from internet (CGNAT) | Not accessible |
+| WiFi (Private) | Not accessible | Accessible to same-network devices | Not accessible |
+| WiFi (Public) | Not accessible | **DANGER**: Accessible to anyone on public WiFi | Not accessible |
+| USB Tethered | Not accessible | Accessible to tethered device | Not accessible |
+| Device as Hotspot | Not accessible | Accessible to hotspot clients | Not accessible |
+| VPN (e.g. Tailscale) | Not accessible | Accessible to VPN peers | Accessible to VPN peers (subject to VPN ACLs) |
+| ADB Port Forward | Accessible via host | Accessible via host | Not accessible (forward targets localhost) |
 
 **CORS (browser clients)**: The server sends permissive CORS (`Access-Control-Allow-Origin: *`, no credentials mode) so browser-based MCP clients (e.g. MCP Inspector) can complete the OAuth flow and `/mcp` exchange. This does not weaken authentication — `/mcp` still requires a bearer/OAuth token that a cross-origin page cannot obtain, and non-browser clients send no `Origin` so CORS is a no-op for them. **Trade-off**: the wildcard removes the browser same-origin barrier, so in OPEN mode (both auth methods disabled) on a network-reachable or DNS-rebindable binding, a malicious web page in the victim's browser could drive the tool surface. No `Origin`/`Host` allowlist is enforced because the device's public host is dynamic (changing IPs, Cloudflare/ngrok tunnels, `public_url_override`); any static allowlist would break remote access. Mitigation: stay on the loopback binding and keep at least one auth method enabled unless the network is trusted.
 

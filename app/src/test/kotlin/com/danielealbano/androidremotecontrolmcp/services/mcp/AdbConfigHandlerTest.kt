@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.danielealbano.androidremotecontrolmcp.data.model.BindAddressValidator
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.CertificateSource
 import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
@@ -89,6 +90,10 @@ class AdbConfigHandlerTest {
             } else {
                 Result.failure(IllegalArgumentException("Invalid slug"))
             }
+        }
+
+        every { settingsRepository.validateCustomBindingAddress(any()) } answers {
+            BindAddressValidator.validate(firstArg())
         }
 
         every { settingsRepository.validatePublicUrlOverride(any()) } answers {
@@ -799,15 +804,42 @@ class AdbConfigHandlerTest {
             }
 
         @Test
-        @DisplayName("unrecognized binding_address is rejected")
-        fun unrecognizedBindingAddressRejected() =
+        @DisplayName("binding_address with a specific IP selects SPECIFIC and stores the address")
+        fun specificBindingAddressApplied() =
             runTest {
                 val intent =
                     createIntent(AdbConfigReceiver.ACTION_CONFIGURE) {
-                        string(AdbConfigHandler.EXTRA_BINDING_ADDRESS, "192.168.1.100")
+                        string(AdbConfigHandler.EXTRA_BINDING_ADDRESS, "100.64.0.5")
+                    }
+                handler.handle(context, intent)
+                coVerify { settingsRepository.updateCustomBindingAddress("100.64.0.5") }
+                coVerify { settingsRepository.updateBindingAddress(BindingAddress.SPECIFIC) }
+            }
+
+        @Test
+        @DisplayName("binding_address that is not an IP literal is rejected")
+        fun invalidBindingAddressRejected() =
+            runTest {
+                val intent =
+                    createIntent(AdbConfigReceiver.ACTION_CONFIGURE) {
+                        string(AdbConfigHandler.EXTRA_BINDING_ADDRESS, "my-phone.example.com")
                     }
                 handler.handle(context, intent)
                 coVerify(exactly = 0) { settingsRepository.updateBindingAddress(any()) }
+                coVerify(exactly = 0) { settingsRepository.updateCustomBindingAddress(any()) }
+            }
+
+        @Test
+        @DisplayName("binding_address IPv6 wildcard is rejected")
+        fun ipv6WildcardBindingAddressRejected() =
+            runTest {
+                val intent =
+                    createIntent(AdbConfigReceiver.ACTION_CONFIGURE) {
+                        string(AdbConfigHandler.EXTRA_BINDING_ADDRESS, "::")
+                    }
+                handler.handle(context, intent)
+                coVerify(exactly = 0) { settingsRepository.updateBindingAddress(any()) }
+                coVerify(exactly = 0) { settingsRepository.updateCustomBindingAddress(any()) }
             }
 
         @Test

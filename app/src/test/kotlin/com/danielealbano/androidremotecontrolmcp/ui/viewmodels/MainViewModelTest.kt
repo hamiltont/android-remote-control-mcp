@@ -281,6 +281,34 @@ class MainViewModelTest {
         }
 
     @Test
+    fun `updateCustomBindingAddress with valid address clears error and saves`() =
+        runTest {
+            every { settingsRepository.validateCustomBindingAddress("100.64.0.5") } returns
+                Result.success("100.64.0.5")
+
+            viewModel.updateCustomBindingAddress("100.64.0.5")
+            advanceUntilIdle()
+
+            assertEquals("100.64.0.5", viewModel.customBindingAddressInput.value)
+            assertNull(viewModel.customBindingAddressError.value)
+            coVerify { settingsRepository.updateCustomBindingAddress("100.64.0.5") }
+        }
+
+    @Test
+    fun `updateCustomBindingAddress with invalid address sets error and does not save`() =
+        runTest {
+            every { settingsRepository.validateCustomBindingAddress("phone.local") } returns
+                Result.failure(IllegalArgumentException("Must be a numeric IPv4 or IPv6 address"))
+
+            viewModel.updateCustomBindingAddress("phone.local")
+            advanceUntilIdle()
+
+            assertEquals("phone.local", viewModel.customBindingAddressInput.value)
+            assertEquals("Must be a numeric IPv4 or IPv6 address", viewModel.customBindingAddressError.value)
+            coVerify(exactly = 0) { settingsRepository.updateCustomBindingAddress(any()) }
+        }
+
+    @Test
     fun `updateAutoStartOnBoot calls repository`() =
         runTest {
             advanceUntilIdle()

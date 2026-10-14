@@ -1,5 +1,6 @@
 package com.danielealbano.androidremotecontrolmcp.services.tunnel
 
+import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelEndpoint
@@ -115,6 +116,25 @@ class TunnelManagerTest {
 
                 coVerify(exactly = 0) { mockCloudflareProvider.start(any(), any()) }
                 coVerify(exactly = 0) { mockNgrokProvider.start(any(), any()) }
+            }
+
+        @Test
+        fun `start with specific binding address does not start tunnel and logs why`() =
+            runTest {
+                val config =
+                    ServerConfig(
+                        tunnelEnabled = true,
+                        bindingAddress = BindingAddress.SPECIFIC,
+                        customBindingAddress = "100.64.0.5",
+                    )
+                every { mockSettingsRepository.serverConfig } returns flowOf(config)
+
+                val manager = createManager()
+                manager.start(8080)
+
+                coVerify(exactly = 0) { mockCloudflareProvider.start(any(), any()) }
+                coVerify(exactly = 0) { mockNgrokProvider.start(any(), any()) }
+                assertEquals(1, serverLog.ofType(ServerLogEntry.Type.TUNNEL).size)
             }
 
         @Test

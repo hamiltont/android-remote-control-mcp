@@ -130,30 +130,33 @@ class AdbConfigHandler(
         )
     }
 
+    /**
+     * `binding_address` accepts `127.0.0.1` (localhost), `0.0.0.0` (all interfaces), or any other
+     * non-wildcard IP literal, which selects [BindingAddress.SPECIFIC] bound to that address.
+     */
     private suspend fun applyBindingAddress(intent: Intent) {
         val value = intent.getStringExtra(EXTRA_BINDING_ADDRESS) ?: return
-        val address =
-            when (value) {
-                BindingAddress.NETWORK.address -> {
-                    BindingAddress.NETWORK
-                }
-
-                BindingAddress.LOCALHOST.address -> {
-                    BindingAddress.LOCALHOST
-                }
-
-                else -> {
-                    Log.w(
-                        TAG,
-                        "Ignoring unrecognized binding_address '$value' " +
-                            "(valid: ${BindingAddress.LOCALHOST.address}, " +
-                            "${BindingAddress.NETWORK.address})",
-                    )
-                    return
-                }
-            }
-        settingsRepository.updateBindingAddress(address)
-        Log.i(TAG, "Binding address updated to $address")
+        if (value == BindingAddress.NETWORK.address || value == BindingAddress.LOCALHOST.address) {
+            val address = BindingAddress.fromAddress(value)
+            settingsRepository.updateBindingAddress(address)
+            Log.i(TAG, "Binding address updated to $address")
+            return
+        }
+        settingsRepository.validateCustomBindingAddress(value).fold(
+            onSuccess = { address ->
+                settingsRepository.updateCustomBindingAddress(address)
+                settingsRepository.updateBindingAddress(BindingAddress.SPECIFIC)
+                Log.i(TAG, "Binding address updated to SPECIFIC ($address)")
+            },
+            onFailure = {
+                Log.w(
+                    TAG,
+                    "Ignoring invalid binding_address '$value': ${it.message} " +
+                        "(valid: ${BindingAddress.LOCALHOST.address}, " +
+                        "${BindingAddress.NETWORK.address}, or a specific IP address)",
+                )
+            },
+        )
     }
 
     private suspend fun applyPort(intent: Intent) {

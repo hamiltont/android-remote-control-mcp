@@ -174,6 +174,7 @@ fun ServerScreen(
 
             ConnectionInfoCard(
                 bindingAddress = serverConfig.bindingAddress,
+                customBindingAddress = serverConfig.customBindingAddress,
                 ipAddress = deviceIp,
                 port = serverConfig.port,
                 httpsEnabled = serverConfig.httpsEnabled,

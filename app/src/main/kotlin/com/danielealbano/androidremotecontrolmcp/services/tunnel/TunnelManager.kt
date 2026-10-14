@@ -1,5 +1,6 @@
 package com.danielealbano.androidremotecontrolmcp.services.tunnel
 
+import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
@@ -50,8 +51,17 @@ class TunnelManager
                 if (!config.tunnelEnabled) return
 
                 // A tunnel always targets an http://localhost origin, so it MUST NOT run while the
-                // server serves HTTPS. (The McpServerService start path enforces this too.)
-                if (config.httpsEnabled) return
+                // server serves HTTPS (the McpServerService start path enforces this too), nor while
+                // it is bound to one specific address, which does not include localhost.
+                if (config.httpsEnabled || config.bindingAddress == BindingAddress.SPECIFIC) {
+                    if (config.bindingAddress == BindingAddress.SPECIFIC) {
+                        serverLogRepository.log(
+                            ServerLogEntry.Type.TUNNEL,
+                            "Tunnel not started: it requires Localhost or Network binding",
+                        )
+                    }
+                    return
+                }
 
                 val provider =
                     when (config.tunnelProvider) {

@@ -213,6 +213,37 @@ class SettingsRepositoryImplTest {
 
                 assertEquals(BindingAddress.LOCALHOST, config.bindingAddress)
             }
+
+        @Test
+        fun `persists SPECIFIC with its custom address`() =
+            testScope.runTest {
+                repository.updateCustomBindingAddress("100.64.0.5")
+                repository.updateBindingAddress(BindingAddress.SPECIFIC)
+                val config = repository.getServerConfig()
+
+                assertEquals(BindingAddress.SPECIFIC, config.bindingAddress)
+                assertEquals("100.64.0.5", config.customBindingAddress)
+                assertEquals("100.64.0.5", config.bindHost)
+            }
+
+        @Test
+        fun `custom address is kept when switching back to LOCALHOST`() =
+            testScope.runTest {
+                repository.updateCustomBindingAddress("100.64.0.5")
+                repository.updateBindingAddress(BindingAddress.SPECIFIC)
+                repository.updateBindingAddress(BindingAddress.LOCALHOST)
+                val config = repository.getServerConfig()
+
+                assertEquals("127.0.0.1", config.bindHost)
+                assertEquals("100.64.0.5", config.customBindingAddress)
+            }
+
+        @Test
+        fun `validateCustomBindingAddress delegates to BindAddressValidator`() {
+            assertEquals("100.64.0.5", repository.validateCustomBindingAddress("100.64.0.5").getOrNull())
+            assertTrue(repository.validateCustomBindingAddress("0.0.0.0").isFailure)
+            assertTrue(repository.validateCustomBindingAddress("phone.example.com").isFailure)
+        }
     }
 
     @Nested

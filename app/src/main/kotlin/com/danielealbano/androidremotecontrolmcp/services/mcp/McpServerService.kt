@@ -9,6 +9,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.danielealbano.androidremotecontrolmcp.McpApplication
 import com.danielealbano.androidremotecontrolmcp.R
+import com.danielealbano.androidremotecontrolmcp.data.model.BindAddressValidator
+import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.OptionalToolPermissions
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
@@ -257,7 +259,7 @@ class McpServerService : Service() {
             Log.i(
                 TAG,
                 "Starting MCP server with config: port=${config.port}, " +
-                    "binding=${config.bindingAddress.address}, toolNamePrefix=$toolNamePrefix",
+                    "binding=${config.bindHost}, toolNamePrefix=$toolNamePrefix",
             )
 
             // Only get/create SSL keystore when HTTPS is enabled
@@ -350,12 +352,13 @@ class McpServerService : Service() {
             updateStatus(
                 ServerStatus.Running(
                     port = config.port,
-                    bindingAddress = config.bindingAddress.address,
+                    bindingAddress = config.bindHost,
                 ),
             )
 
             // Start tunnel if remote access is enabled. A tunnel always targets an
             // http://localhost origin, so it MUST NOT run while the server serves HTTPS.
+            // (TunnelManager.start also declines, with a log entry, when bound to a specific address.)
             if (config.httpsEnabled) {
                 Log.i(TAG, "Remote access tunnel disabled while HTTPS is enabled")
                 tunnelManager.stop()
@@ -412,7 +415,7 @@ class McpServerService : Service() {
                     }
                 }
 
-            Log.i(TAG, "MCP server started successfully on ${config.bindingAddress.address}:${config.port}")
+            Log.i(TAG, "MCP server started successfully on ${config.bindHost}:${config.port}")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start MCP server", e)
             updateStatus(ServerStatus.Error(e.message ?: "Unknown error starting server"))
@@ -433,7 +436,12 @@ class McpServerService : Service() {
             val cfg = activeConfig
             val scheme = if (cfg?.httpsEnabled == true) "https" else "http"
             val host =
-                NetworkUtils.getDeviceIpAddress(applicationContext) ?: cfg?.bindingAddress?.address ?: "127.0.0.1"
+                if (cfg != null && cfg.bindingAddress == BindingAddress.SPECIFIC) {
+                    // Bound to one address: links must point at it, not at the device's Wi-Fi IP.
+                    BindAddressValidator.toUrlHost(cfg.bindHost)
+                } else {
+                    NetworkUtils.getDeviceIpAddress(applicationContext) ?: cfg?.bindHost ?: "127.0.0.1"
+                }
             val port = cfg?.port ?: ServerConfig.DEFAULT_PORT
             "$scheme://$host:$port"
         }

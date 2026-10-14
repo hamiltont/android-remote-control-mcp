@@ -2,6 +2,8 @@ package com.danielealbano.androidremotecontrolmcp.mcp
 
 import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.BuildConfig
+import com.danielealbano.androidremotecontrolmcp.data.model.BindAddressValidator
+import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.data.repository.ServerLogRepository
@@ -24,6 +26,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import java.net.BindException
 import java.security.KeyStore
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -73,9 +76,11 @@ class McpServer(
             return
         }
 
-        Log.i(TAG, "Starting MCP server on ${config.bindingAddress.address}:${config.port}")
+        val bindHost = config.bindHost
+        Log.i(TAG, "Starting MCP server on $bindHost:${config.port}")
 
         try {
+            requireValidSpecificAddress(bindHost)
             server =
                 if (config.httpsEnabled && httpsMaterial != null) {
                     createHttpsServer()
@@ -89,7 +94,7 @@ class McpServer(
             server = null
             running.set(false)
             Log.e(TAG, "Failed to start MCP server", e)
-            throw e
+            throw describeBindFailure(e, bindHost)
         }
     }
 
@@ -123,11 +128,43 @@ class McpServer(
 
     fun isRunning(): Boolean = running.get()
 
+    /**
+     * Turns a [BindException] for a [BindingAddress.SPECIFIC] address into an actionable message. The
+     * common cause is the owning interface not being up yet (e.g. a VPN or Tailscale not connected),
+     * in which case the OS reports only "Cannot assign requested address".
+     */
+    private fun describeBindFailure(
+        e: Exception,
+        bindHost: String,
+    ): Exception {
+        val bindException =
+            if (config.bindingAddress == BindingAddress.SPECIFIC) {
+                generateSequence<Throwable>(e) { it.cause }.firstOrNull { it is BindException }
+            } else {
+                null
+            }
+        return bindException?.let {
+            IllegalStateException(
+                "Cannot bind to $bindHost:${config.port} (${it.message}). Check that the address belongs to " +
+                    "this device and its network (e.g. VPN/Tailscale) is connected.",
+                e,
+            )
+        } ?: e
+    }
+
+    /** Fails fast with a clear message when [BindingAddress.SPECIFIC] has no valid address saved. */
+    private fun requireValidSpecificAddress(bindHost: String) {
+        if (config.bindingAddress != BindingAddress.SPECIFIC) return
+        BindAddressValidator.validate(bindHost).onFailure {
+            throw IllegalStateException("Specific binding address is not set or invalid: ${it.message}", it)
+        }
+    }
+
     private fun createHttpServer(): EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration> =
         embeddedServer(
             factory = Netty,
             port = config.port,
-            host = config.bindingAddress.address,
+            host = config.bindHost,
             module = { configureApplication() },
         )
 
@@ -142,7 +179,7 @@ class McpServer(
                     keyStorePassword = { material.keyStorePassword },
                     privateKeyPassword = { material.keyStorePassword },
                 ) {
-                    host = config.bindingAddress.address
+                    host = config.bindHost
                     port = config.port
                 }
             },

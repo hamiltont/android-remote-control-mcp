@@ -37,6 +37,7 @@ private fun sanitizeLocationId(locationId: String) = locationId.take(MAX_LOC_ID_
 
 private val PORT_KEY = intPreferencesKey("port")
 private val BINDING_ADDRESS_KEY = stringPreferencesKey("binding_address")
+private val CUSTOM_BINDING_ADDRESS_KEY = stringPreferencesKey("custom_binding_address")
 private val BEARER_TOKEN_KEY = stringPreferencesKey("bearer_token")
 private val BEARER_TOKEN_INITIALIZED_KEY = booleanPreferencesKey("bearer_token_initialized")
 private val OAUTH_ENABLED_KEY = booleanPreferencesKey("oauth_enabled")
@@ -110,6 +111,7 @@ private fun mapPreferencesToServerConfig(prefs: Preferences): ServerConfig {
         bindingAddress =
             BindingAddress.entries.firstOrNull { it.name == bindingAddressName }
                 ?: BindingAddress.LOCALHOST,
+        customBindingAddress = prefs[CUSTOM_BINDING_ADDRESS_KEY] ?: "",
         bearerToken = prefs[BEARER_TOKEN_KEY] ?: "",
         autoStartOnBoot = prefs[AUTO_START_KEY] ?: false,
         toolCallIndicatorEnabled = prefs[TOOL_CALL_INDICATOR_ENABLED_KEY] ?: true,
@@ -224,7 +226,7 @@ private fun logPrivacyModeDiff(
  *
  * @property dataStore The Preferences DataStore instance provided by Hilt.
  */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 class SettingsRepositoryImpl
     @Inject
     constructor(
@@ -364,6 +366,11 @@ class SettingsRepositoryImpl
                 BindingAddress.LOCALHOST.name,
             ) { o, n ->
                 "Binding address changed $o → $n"
+            }
+
+        override suspend fun updateCustomBindingAddress(address: String) =
+            logScalarChange(CUSTOM_BINDING_ADDRESS_KEY, "custom_binding_address", address, "") { o, n ->
+                "Specific binding address changed ${o.ifEmpty { "(none)" }} → ${n.ifEmpty { "(none)" }}"
             }
 
         override suspend fun updateBearerToken(token: String) =

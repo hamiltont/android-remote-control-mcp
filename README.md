@@ -55,7 +55,7 @@ The app runs directly on your Android device (or emulator) and exposes an HTTP s
 - Streamable HTTP transport at `/mcp` (MCP specification compliant, JSON-only, no SSE)
 - Combined authentication: static bearer token and/or a self-contained OAuth 2.1 server (Claude.ai / Claude Desktop custom connectors, with on-device approval)
 - Auto-generated self-signed TLS certificates (or custom certificate upload)
-- Configurable binding: localhost (127.0.0.1) or network (0.0.0.0)
+- Configurable binding: localhost (127.0.0.1), network (0.0.0.0), or a specific IP (e.g. a Tailscale/VPN address)
 - Auto-start on boot
 - Remote access tunnels via Cloudflare Quick Tunnels or ngrok (public HTTPS URL)
 
@@ -329,7 +329,7 @@ The bearer token is shown in the app's connection info and can be copied directl
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Port | `8080` | HTTP/HTTPS server port |
-| Binding Address | `127.0.0.1` | `127.0.0.1` (localhost, use with adb port forwarding) or `0.0.0.0` (network, all interfaces) |
+| Binding Address | `127.0.0.1` | `127.0.0.1` (localhost, use with adb port forwarding), `0.0.0.0` (network, all interfaces), or Specific IP (one address you enter, e.g. a Tailscale/VPN address) |
 | Bearer Token | Enabled, auto-generated UUID | Static token for MCP requests (Settings → Access). Enforcement is set by the Bearer toggle, not by clearing the value. |
 | OAuth | Enabled | Self-contained OAuth 2.1 server for Claude.ai / Claude Desktop custom connectors (Settings → Access). |
 | Public URL override | Empty (auto-detect) | Pin the public host used for OAuth metadata and share links. |
@@ -366,6 +366,14 @@ When the server is bound to `0.0.0.0`:
 2. Connect directly via `POST http://DEVICE_IP:8080/mcp` with bearer token
 
 **Warning**: Binding to `0.0.0.0` exposes the server to all devices on the same network. Only use on trusted private networks.
+
+### Using over a VPN (e.g. Tailscale)
+
+To reach the server over a VPN without also exposing it on Wi-Fi or mobile data, choose **Specific IP** as the binding address and enter the phone's VPN address (for Tailscale, the `100.x.y.z` address shown in the Tailscale app). The server then listens only on that interface.
+
+- The VPN must be connected when the server starts; otherwise it fails with a clear "Cannot bind" error. Start the server again once the VPN is up.
+- Remote access tunnels are unavailable in this mode, since they forward to `localhost`.
+- Only numeric IPv4/IPv6 addresses are accepted (no hostnames, no wildcards, no IPv6 link-local).
 
 ### Using Remote Access Tunnels
 
@@ -473,7 +481,7 @@ Bearer enforcement is controlled by `--ez bearer_token_enabled <bool>`, NOT by c
 | `bearer_token_enabled` | boolean | Enable/disable bearer-token authentication (controls enforcement, independent of the value) |
 | `oauth_enabled` | boolean | Enable/disable the self-contained OAuth 2.1 server (Claude.ai / Claude Desktop connectors) |
 | `public_url_override` | string | Pin the public host used for OAuth metadata and share links (empty = auto-detect from the request) |
-| `binding_address` | string | `127.0.0.1` (localhost) or `0.0.0.0` (network) |
+| `binding_address` | string | `127.0.0.1` (localhost), `0.0.0.0` (network), or a specific IP such as a Tailscale/VPN address (e.g. `100.64.0.5`) to listen only on that interface |
 | `port` | int | HTTP/HTTPS server port (1-65535) |
 | `auto_start_on_boot` | boolean | Start MCP server when device boots |
 | `hide_from_recents` | boolean | Exclude the app from the Android Recent Tasks list |
@@ -562,6 +570,7 @@ Authentication is combined (dual-accept): a `/mcp` request is authorized by a va
 
 - **Default binding `127.0.0.1`**: Only accessible via adb port forwarding or tunnels (most secure)
 - **Optional binding `0.0.0.0`**: Accessible over network (use only on trusted networks; security warning displayed when enabling)
+- **Optional specific IP binding**: Accessible only on the interface that owns the chosen address (e.g. a VPN), not on every network the phone joins
 - **HTTPS**: Optional, disabled by default. When enabled, uses auto-generated self-signed certificates or upload your own CA-signed certificate. Certificate is stored in app-private storage.
 
 ### Permissions

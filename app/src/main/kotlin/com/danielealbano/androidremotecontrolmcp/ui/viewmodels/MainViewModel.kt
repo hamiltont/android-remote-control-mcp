@@ -122,6 +122,12 @@ class MainViewModel
         private val _downloadTimeoutError = MutableStateFlow<String?>(null)
         val downloadTimeoutError: StateFlow<String?> = _downloadTimeoutError.asStateFlow()
 
+        private val _customBindingAddressInput = MutableStateFlow("")
+        val customBindingAddressInput: StateFlow<String> = _customBindingAddressInput.asStateFlow()
+
+        private val _customBindingAddressError = MutableStateFlow<String?>(null)
+        val customBindingAddressError: StateFlow<String?> = _customBindingAddressError.asStateFlow()
+
         private val _deviceSlugInput = MutableStateFlow("")
         val deviceSlugInput: StateFlow<String> = _deviceSlugInput.asStateFlow()
 
@@ -157,6 +163,8 @@ class MainViewModel
                     _downloadTimeoutError.value = null
                     _deviceSlugInput.value = config.deviceSlug
                     _deviceSlugError.value = null
+                    _customBindingAddressInput.value = config.customBindingAddress
+                    _customBindingAddressError.value = null
                 }
             }
 
@@ -205,6 +213,20 @@ class MainViewModel
         fun updateBindingAddress(address: BindingAddress) {
             viewModelScope.launch(ioDispatcher) {
                 settingsRepository.updateBindingAddress(address)
+            }
+        }
+
+        fun updateCustomBindingAddress(address: String) {
+            _customBindingAddressInput.value = address
+            val result = settingsRepository.validateCustomBindingAddress(address)
+            if (result.isFailure) {
+                _customBindingAddressError.value = result.exceptionOrNull()?.message
+                return
+            }
+            _customBindingAddressError.value = null
+            val validated = result.getOrThrow()
+            viewModelScope.launch(ioDispatcher) {
+                settingsRepository.updateCustomBindingAddress(validated)
             }
         }
 

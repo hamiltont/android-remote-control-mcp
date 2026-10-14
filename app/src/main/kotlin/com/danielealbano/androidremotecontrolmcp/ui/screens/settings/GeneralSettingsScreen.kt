@@ -58,6 +58,8 @@ fun GeneralSettingsScreen(
     val portError by viewModel.portError.collectAsStateWithLifecycle()
     val deviceSlugInput by viewModel.deviceSlugInput.collectAsStateWithLifecycle()
     val deviceSlugError by viewModel.deviceSlugError.collectAsStateWithLifecycle()
+    val customBindingAddressInput by viewModel.customBindingAddressInput.collectAsStateWithLifecycle()
+    val customBindingAddressError by viewModel.customBindingAddressError.collectAsStateWithLifecycle()
 
     val isEnabled =
         serverStatus !is ServerStatus.Running &&
@@ -135,10 +137,33 @@ fun GeneralSettingsScreen(
                                 when (address) {
                                     BindingAddress.LOCALHOST -> stringResource(R.string.config_binding_localhost)
                                     BindingAddress.NETWORK -> stringResource(R.string.config_binding_network)
+                                    BindingAddress.SPECIFIC -> stringResource(R.string.config_binding_specific)
                                 },
                         )
                     }
                 }
+            }
+
+            // Specific IP Input (only when binding to a specific address)
+            if (serverConfig.bindingAddress == BindingAddress.SPECIFIC) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = customBindingAddressInput,
+                    onValueChange = viewModel::updateCustomBindingAddress,
+                    label = { Text(stringResource(R.string.config_binding_specific_address_label)) },
+                    placeholder = { Text(stringResource(R.string.config_binding_specific_address_hint)) },
+                    isError = customBindingAddressError != null,
+                    supportingText = {
+                        Text(
+                            customBindingAddressError
+                                ?: stringResource(R.string.config_binding_specific_address_supporting),
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    singleLine = true,
+                    enabled = isEnabled,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))

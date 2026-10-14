@@ -71,6 +71,10 @@
     <string name="config_binding_address_label">Binding Address</string>
     <string name="config_binding_localhost">Localhost (127.0.0.1)</string>
     <string name="config_binding_network">Network (0.0.0.0)</string>
+    <string name="config_binding_specific">Specific IP</string>
+    <string name="config_binding_specific_address_label">Bind to IP address</string>
+    <string name="config_binding_specific_address_hint">e.g., 100.64.0.5</string>
+    <string name="config_binding_specific_address_supporting">The server listens only on the interface that owns this address (e.g. Tailscale or another VPN). It cannot start until that interface is up, and remote-access tunnels are unavailable in this mode.</string>
     <string name="config_port_label">Port</string>
     <string name="config_device_slug_label">Device Slug (optional)</string>
     <string name="config_device_slug_hint">e.g., pixel7, work_phone</string>
